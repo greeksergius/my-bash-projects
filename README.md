@@ -137,7 +137,7 @@ sudo systemctl restart apache2
 
     <Proxy "balancer://mycluster">
         BalancerMember http://127.0.0.1 route=web1 status=+H
-        BalancerMember http://ип-адрес-1-веб-сервера route=web1 status=+H
+        BalancerMember http://ип-адрес-1-веб-сервера route=web2 status=+H
         ProxySet stickysession=ROUTEID
     </Proxy>
 
