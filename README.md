@@ -1,4 +1,4 @@
-# Keepalived и проверка работоспособности сервиса СУБД MySQL
+# Keepalived из двух НОД и проверка работоспособности сервиса СУБД MySQL
 Зачастую для того, чтобы выяснить, кто из серверов в кластере отказоустойчивости должен брать на себя статус MASTER на плавающий IP-адрес, необходимо, чтобы сервер был не только доступен в сети, но и была доступность службы, с которой мы работаем. Так как предоставление конечного сервиса является ключевой сутью мониторинга сервисов.
 
 Для примера возьмем СУБД MySQL. В конфигурационном скрипте приложения Keepalived укажем путь на BASH скрипт, который выясняет статус службы MySQL, который должен быть  **active (running)**. Где скрипт возвращает код 0 (успех) сервису keepalived, что означает успешное выполнение. Если же служба находится в статусе stop, fault, то код возврата будет 1 и приложение keepalived сочтет это за сбой работы сервиса и осуществит передачу статуса MASTER другой ноде в кластере.
@@ -31,25 +31,24 @@ global_defs {
 }
 # Health checks
 vrrp_script chk_mysql {
-        script "/etc/keepalived/checkactive.sh"
-#       weight 2     # Is relevant for the diff in priority
-        interval 1   # every ... seconds
-        timeout 3    # script considered failed after ... seconds
-        fall 3       # number of failures for K.O.
-        rise 1       # number of success for OK
+        script "/etc/keepalived/checkactive.sh"  # путь до BASH  скрипта указанного выше
+#       weight 2     # Вес, если есть разность приоритетов
+        interval 1   # Интервал опроса
+        timeout 3    # количество получения ошибок для срабатывания скрипта  
+        rise 1       # количество успешных попыток для срабатывания скрипта
         }
 vrrp_instance VI-MM-VIP1 {
         state MASTER
-        interface enp0s8 # LAN interface VM
+        interface enp0s8 # используемый сетевой интерфейс, который обязательно нужно подправить
         virtual_router_id 123
-        priority 100
+        priority 100 # Приоритет ноды среди нод HA-кластера
         advert_int 1
         authentication {
-                auth_type PASS
+                auth_type PASS # Задаем данные для аунтентификации сервисов keepalived
                 auth_pass pwd123
         }
         virtual_ipaddress {
-                192.168.0.50 dev enp0s8 # public interface for VIP
+                192.168.0.50 dev enp0s8 # указание публичного адреса и сетевого интерфейса на котором он создается 
         }
 track_script {
     chk_mysql
@@ -57,6 +56,8 @@ track_script {
 
 }
 ```
+
+**Объяснение работы отвечающих параметров конфигурационного скрипта Keepalived указаны в комментариях к строкам**
 
 И содержание конфигурационного файла Keepalived на второй ноде, которая выступает в роли BACKUP - /etc/keepalived/keepalived.conf
 ```bash
@@ -75,16 +76,16 @@ vrrp_script chk_mysql {
         }
 vrrp_instance VI-MM-VIP1 {
         state BACKUP
-        interface enp0s8
+        interface enp0s8 # сетевой интерфейс, который обязательно нужно подправить
         virtual_router_id 123
-        priority 80
+        priority 80 # Приоритет ноды среди нод HA-кластера ( ег оуменьшили)
         advert_int 1
         authentication {
                 auth_type PASS
                 auth_pass pwd123
         }
         virtual_ipaddress {
-                  192.168.0.50 dev enp0s8 # public interface for VIP
+                  192.168.0.50 dev enp0s8 # указание публичного адреса и сетевого интерфейса на котором он создается 
         }
 track_script {
     chk_mysql
