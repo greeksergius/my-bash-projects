@@ -23,6 +23,9 @@ fi
 if [ \$(systemctl is-active mysql) == "inactive" ];
 ```
 
+Или использованием EOF заключенного в кавычки 'EOF', что позволит избежать интерпритации команд.
+
+
 Теперь рассмотрим конфигурационный файл Keepalived - */etc/keepalived/keepalived.conf*:
 ```bash
 # primary mysql server
