@@ -103,3 +103,54 @@ track_script {
 
 
 # Балансировщик нагрузки на базе Apache
+Наиболее популярные  решения для создания балансировщиков нагрузки: Nginx, HaProxy, также эту фнукицю имеет и Apache, он конечно менее производительный чем первых два перечисленных решения. Но все же может быть удобен, если мы используем невысоконагруженный сервис в стеке, где используется Apache и мы не хотим иметь лишние установленные приложения.
+
+Исходные данные:  два веб-сервера на базе Apache2, которые оба работают в режиме балансировщика по типу round robin и каждый второй запрос пересылают на противоположный веб-сервер. Данное решение конечно имеет свои нюансы в отказоустойчивости и дополнительно создают нагрузку на сам сервер при обработке запросов пользователей.
+
+И так, для начала у нас должен быть установлен веб-сервер на базе Apache и также активированы его модули:
+```bash
+sudo apt install apache2 -y
+sudo a2enmod proxy
+sudo a2enmod proxy_http
+sudo a2enmod lbmethod_byrequests
+sudo systemctl restart apache2
+```
+
+Содержание файла конфигурации балансировщика на первом веб-сервере /etc/apache2/sites-available/balancer.conf:
+```bash
+<VirtualHost внешнийип-адрес-текущего-сервера:80>
+
+    <Proxy "balancer://mycluster">
+        BalancerMember http://127.0.0.1 route=web1 status=+H
+        BalancerMember http://ип-адрес-2-веб-сервера route=web2 status=+H
+        ProxySet stickysession=ROUTEID
+    </Proxy>
+
+    ProxyPreserveHost On
+    ProxyPass / balancer://mycluster/ stickysession=ROUTEID
+    ProxyPassReverse / balancer://mycluster/
+</VirtualHost>
+```
+Содержание файла конфигурации балансировщика на втором веб-сервере /etc/apache2/sites-available/balancer.conf:
+```bash
+<VirtualHost внешнийип-адрес-текущего-сервера:80>
+
+    <Proxy "balancer://mycluster">
+        BalancerMember http://127.0.0.1 route=web1 status=+H
+        BalancerMember http://ип-адрес-1-веб-сервера route=web1 status=+H
+        ProxySet stickysession=ROUTEID
+    </Proxy>
+
+    ProxyPreserveHost On
+    ProxyPass / balancer://mycluster/ stickysession=ROUTEID
+    ProxyPassReverse / balancer://mycluster/
+</VirtualHost>
+```
+
+После чего на каждом веб-сервере применяем файл конфигурации веб-сервера balancer.conf и перезагружаем службу веб-сервера
+
+```bash
+sudo a2ensite balancer.conf
+sudo  a2dissite 000-default.conf
+sudo systemctl restart apache2
+```
