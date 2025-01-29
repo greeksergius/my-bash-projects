@@ -40,7 +40,7 @@ vrrp_script chk_mysql {
         }
 vrrp_instance VI-MM-VIP1 {
         state MASTER
-        interface $DEVINTERFACE
+        interface enp0s8 # LAN interface VM
         virtual_router_id 123
         priority 100
         advert_int 1
@@ -49,7 +49,7 @@ vrrp_instance VI-MM-VIP1 {
                 auth_pass pwd123
         }
         virtual_ipaddress {
-                $VIPPUBLICMYSQL dev $DEVINTERFACE # public interface for VIP
+                $VIPPUBLICMYSQL dev enp0s8 # public interface for VIP
         }
 track_script {
     chk_mysql
