@@ -151,6 +151,6 @@ sudo systemctl restart apache2
 
 ```bash
 sudo a2ensite balancer.conf
-sudo  a2dissite 000-default.conf
+sudo a2dissite 000-default.conf
 sudo systemctl restart apache2
 ```
