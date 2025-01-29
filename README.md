@@ -158,3 +158,66 @@ sudo systemctl restart apache2
 Обратим внимание на строку  *<VirtualHost внешнийип-адрес-текущего-сервера:80>*, где нужно указать наш текущий внешний ип-адрес веб-сервера и также обратите внимание на строку *BalancerMember http://127.0.0.1 route=web1 status=+H* , где на текущем веб-сервере необходимо указать адрес 127.0.0.1, где веб-сервер адресовывает запросы на свой сетевой интерфейс.  Параметр *ProxySet stickysession=ROUTEID* позволяет отслеживать сессию пользователя и при его индентификации продолжать с ним работу без переадресации.
 
 В целом данный конфигурационный файл позволяет осуществить балансировку нагрузки между двумя веб-серверами.
+
+# Синхронизация файлов и каталогов между двумя веб-серверами с помощью RSYNC.
+Устанавливаем rsync:
+```bash
+apt install rsync -y
+```
+
+Далее создадим скрипт для синхронизации в домашнем каталоге, который создаст процесс запуска скрипта синхронизации и будет осуществлять блокировку rsync при повторном запуске скрипта синхронизации, для того чтобы cron не запустил его паралельно  еще раз.
+
+Cодержание скрипта sync.sh:
+```bash
+#!/bin/bash
+DESTINATION="/var/www/html/" # указываем куда и откуда
+export RSYNC_RSH="sshpass -p '$USERSSHPASS' ssh"
+
+touch /tmp/run_once_marker
+if [ -f /tmp/run_once_marker ]; then
+#   echo "Скрипт уже выполнен, выход."
+    exit 0
+fi
+
+pid_file="/tmp/rsync.pid"
+log_file="/tmp/rsync.log"
+
+while true; do
+    if [ ! -f "$pid_file" ]; then
+        sleep 5
+        # Запускаем rsync и сохраняем его PID в файл.
+        rsync -avz --update --chown=www-data:www-data $DESTINATION $SSHUSER@$WEBSERVER2:$DESTINATION
+        rsync -avz --update --chown=www-data:www-data $SSHUSER@$WEBSERVER2:$DESTINATION $DESTINATION &
+        echo $! > "$pid_file"
+    fi
+
+    # Проверяем наличие процесса с указанным PID.
+    if pgrep -P $(cat "$pid_file") > /dev/null; then
+        # Ожидаем завершения процесса.
+        wait $(cat "$pid_file")
+    else
+        echo "Процесс с PID $(cat "$pid_file") не найден."
+        rm "$pid_file"
+    fi
+
+    # Удаляем файл PID после завершения процесса.
+    rm "$pid_file"
+done
+```
+
+Даем права на исполнение скрипта для последующего использование его в планировщике Cron:
+```bash
+chmod +x ~/sync.sh
+```
+
+Настраиваем задачу для cron:
+```bash
+cat <<EOF > /tmp/mycronjob.cron
+* * * * * ~/sync.sh > /tmp/logfile.txt 2>&1
+EOF
+```
+
+И внесем созданную задачу с в планировщик Cron:
+```bash
+crontab /tmp/mycronjob.cron
+```
