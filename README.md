@@ -8,7 +8,7 @@
 #!/bin/bash
 # Название службы MySQL, обычно это mysql или mysqld
 # Проверка статуса службы
-if [ \$(systemctl is-active mysql) == "inactive" ];
+if [ $(systemctl is-active mysql) == "inactive" ];
 then
 # Возвращаем код выхода 1, если служба неактивна
 exit 1
