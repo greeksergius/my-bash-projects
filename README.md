@@ -167,9 +167,14 @@ apt install rsync -y
 
 Далее создадим скрипт для синхронизации в домашнем каталоге, который создаст процесс запуска скрипта синхронизации и будет осуществлять блокировку rsync при повторном запуске скрипта синхронизации, для того чтобы cron не запустил его паралельно  еще раз.
 
-Cодержание скрипта sync.sh:
+Cодержание скрипта *sync.sh*:
 ```bash
 #!/bin/bash
+#VARS
+WEBSERVER1="192.168.0.30" # LAN ip address webserver 1
+WEBSERVER2="192.168.0.31" # LAN ip address webserver 2
+SSHUSER="user" # наш пользователь с логином user на подключаемой машине
+USERSSHPASS="123456" # пароль подключения к 2 серверу
 DESTINATION="/var/www/html/" # указываем куда и откуда
 export RSYNC_RSH="sshpass -p '$USERSSHPASS' ssh"
 
@@ -217,7 +222,7 @@ cat <<EOF > /tmp/mycronjob.cron
 EOF
 ```
 
-И внесем созданную задачу с в планировщик Cron:
+И внесем созданную задачу в планировщик Cron:
 ```bash
 crontab /tmp/mycronjob.cron
 ```
